@@ -6,35 +6,30 @@ const scene = new THREE.Scene();
 
 // Create a camera
 const camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
-camera.position.set(0, 10, 0); // Positioned above, looking down
+camera.position.set(0, 6, 5); // New less steep, more immersive position
 camera.lookAt(0, 0, 0); // Look at the center of the scene
 
 // Create a renderer
 const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
-renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+// Initial size setting will be handled by initialSetup
+
+const ASPECT_RATIO = 16 / 9;
 
 // Add resize listener
 window.addEventListener('resize', () => {
-    let width = canvas.clientWidth;
-    if (width === 0 && canvas.parentElement) {
-        width = canvas.parentElement.clientWidth;
-    } else if (width === 0) {
-        width = window.innerWidth * 0.8;
-    }
+    const actualWidth = canvas.clientWidth;
+    const actualHeight = Math.floor(actualWidth / ASPECT_RATIO);
 
-    let height = canvas.clientHeight;
-    if (height === 0 && canvas.parentElement) {
-        height = canvas.parentElement.clientHeight;
-    } else if (height === 0) {
-        height = window.innerHeight * 0.8;
-    }
-    
-    if (width === 0) width = 600;
-    if (height === 0) height = 400;
+    // Check if canvas drawing buffer size needs to be updated
+    if (canvas.width !== actualWidth || canvas.height !== actualHeight) {
+        canvas.width = actualWidth;  // Set drawing buffer width
+        canvas.height = actualHeight; // Set drawing buffer height
+        renderer.setSize(actualWidth, actualHeight); // Update three.js renderer size
 
-    renderer.setSize(width, height);
-    camera.aspect = width / height;
-    camera.updateProjectionMatrix();
+        camera.aspect = actualWidth / actualHeight; // which is ASPECT_RATIO
+        camera.updateProjectionMatrix();
+        console.log(`Resized to: ${actualWidth}x${actualHeight}`);
+    }
 });
 
 // Add Basic Lighting
@@ -219,6 +214,14 @@ const pockets = [
 // Shot state variables (reset per shot)
 let ballPocketedThisTurn = null; 
 let shotHadEffect = false; // Will be true if any ball moves significantly or is pocketed
+
+// Shot Power Control Variables
+let isDraggingCue = false;
+let dragStartPosition = new THREE.Vector2(); // For screen coordinates
+let currentShotPower = 0; // Normalized 0 to 1
+const MAX_DRAG_DISTANCE = 150; // Max screen pixels to drag for full power
+const MIN_SHOT_POWER_THRESHOLD = 0.05; // Minimum power to register a shot
+const MAX_SHOT_VELOCITY = 0.7; // Max velocity impulse for full power
 
 
 // Animate Loop (Refactored)
@@ -418,8 +421,11 @@ function animate() {
             aimingDirection.y = 0; 
             aimingDirection.normalize(); 
 
-            const cueStickOffset = -0.75; 
-            cueStick.position.copy(cueBallObj.mesh.position).addScaledVector(aimingDirection, cueStickOffset);
+            let dynamicOffset = -0.75; // Default half cue length pullback
+            if (isDraggingCue) {
+                dynamicOffset -= (currentShotPower * 0.5); // Pull back further based on power
+            }
+            cueStick.position.copy(cueBallObj.mesh.position).addScaledVector(aimingDirection, dynamicOffset);
             
             const lookAtTarget = new THREE.Vector3().copy(cueStick.position).add(aimingDirection);
             cueStick.lookAt(lookAtTarget);
@@ -449,6 +455,14 @@ canvas.addEventListener('mousemove', (event) => {
     const rect = canvas.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    if (isDraggingCue) {
+        // Calculate drag distance (simple Y-axis screen distance for now)
+        // Dragging "down" (increasing clientY) increases power.
+        let dragDistance = event.clientY - dragStartPosition.y;
+        currentShotPower = Math.min(Math.max(0, dragDistance / MAX_DRAG_DISTANCE), 1);
+        // console.log('Current Shot Power:', currentShotPower); // For debugging
+    }
 });
 
 canvas.addEventListener('mousedown', (event) => {
@@ -457,15 +471,22 @@ canvas.addEventListener('mousedown', (event) => {
             cueBallObj.velocity.lengthSq() < STOP_THRESHOLD_SQ && 
             cueStick.visible && 
             window.gameState && window.gameState.gameStarted) {
-            // Reset shot-specific state variables
-            snookerGameState.shotProcessedForThisTurn = false;
-            snookerGameState.turnEnds = false;
-            snookerGameState.foulCommitted = false;
-            ballPocketedThisTurn = null; 
-            shotHadEffect = true; 
+            
+            isDraggingCue = true;
+            dragStartPosition.set(event.clientX, event.clientY);
+            currentShotPower = 0;
 
-            cueBallObj.velocity.copy(aimingDirection).multiplyScalar(0.35); 
-            cueStick.visible = false;
+            // Reset shot-specific state variables (these are for the *next* shot evaluation)
+            // These are typically reset when a shot is *made* (on mouseup) or when turn changes.
+            // Moving some of this to mouseup where the shot is actually taken.
+            // snookerGameState.shotProcessedForThisTurn = false; // This should be reset before a new shot sequence starts
+            // snookerGameState.turnEnds = false;
+            // snookerGameState.foulCommitted = false;
+            // ballPocketedThisTurn = null; 
+            // shotHadEffect = false; // Reset this, will be true if shot is powerful enough
+
+            // Cue stick should remain visible and aimed.
+            // Velocity is not applied here anymore.
             
             // Note: sendFullBallState is now called when balls stop, not immediately on shot.
             // The old sendCueBallState (or equivalent) is removed from here.
@@ -479,7 +500,38 @@ canvas.addEventListener('mousedown', (event) => {
                  // window.sendFullBallState(balls); 
                  // Let's assume the primary state sync is when balls stop.
             }
+            // No actual shot taken here, just initiating drag
         }
+    }
+});
+
+canvas.addEventListener('mouseup', (event) => {
+    if (event.button === 0 && isDraggingCue) {
+        isDraggingCue = false;
+        if (currentShotPower > MIN_SHOT_POWER_THRESHOLD) {
+            if (window.localPlayerId === window.gameState?.currentPlayer &&
+                cueBallObj.velocity.lengthSq() < STOP_THRESHOLD_SQ &&
+                cueStick.visible && // Should still be visible if dragging
+                window.gameState && window.gameState.gameStarted) {
+
+                // Apply velocity based on aimingDirection and currentShotPower
+                const shotVelocity = aimingDirection.clone().multiplyScalar(currentShotPower * MAX_SHOT_VELOCITY);
+                cueBallObj.velocity.copy(shotVelocity);
+                
+                cueStick.visible = false; // Hide stick after shot
+
+                // Reset shot-specific game state flags for the evaluation of THIS shot
+                snookerGameState.shotProcessedForThisTurn = false;
+                snookerGameState.turnEnds = false;
+                snookerGameState.foulCommitted = false;
+                ballPocketedThisTurn = null;
+                shotHadEffect = true; // A shot is made
+
+                console.log(`Shot with power: ${currentShotPower.toFixed(2)}, velocity: ${shotVelocity.length().toFixed(2)}`);
+                // sendFullBallState will be called from animate() when balls stop.
+            }
+        }
+        currentShotPower = 0; // Reset power after shot attempt
     }
 });
 
@@ -487,16 +539,10 @@ canvas.addEventListener('mousedown', (event) => {
 // Placeholder for functions network.js might call
 window.resetGameControls = () => { 
     if(cueStick) cueStick.visible = false; 
-    // Reset snookerGameState if needed, though server should drive game state resets primarily.
-    // snookerGameState.targetBallState = 'MUST_HIT_RED';
-    // snookerGameState.redsRemaining = 15;
     console.log("game.js: resetGameControls called.");
 };
 window.enableCueControls = (isMyTurn) => {
-    console.log("game.js: enableCueControls called with isMyTurn:", isMyTurn);
-    // The primary cue stick visibility is handled in animate() based on active player and ball state.
-    // This function can be used for additional UI cues or more complex control locking if needed.
-    // Example: if (!isMyTurn && cueStick) cueStick.visible = false; (animate() handles this better)
+    console.log("game.js: enableCueControls called with isMyTurn:", isMyTurn, "Current player:", window.gameState ? window.gameState.currentPlayer : 'unknown');
 };
 
 function allBallsStationary() {
@@ -506,38 +552,67 @@ function allBallsStationary() {
 });
 
 
-// Initial resize call and animation start
-if (canvas.clientWidth > 0 && canvas.clientHeight > 0) {
-    window.dispatchEvent(new Event('resize'));
-    animate();
-} else {
-    console.warn("Canvas dimensions are zero. Starting animate loop, but rendering might not be visible until resize.");
-    const fallbackWidth = (canvas.parentElement || window).innerWidth * 0.8 || 600;
-    const fallbackHeight = (canvas.parentElement || window).innerHeight * 0.8 || 400;
-    renderer.setSize(fallbackWidth, fallbackHeight);
-    camera.aspect = fallbackWidth / fallbackHeight;
+// Initial Setup and Animation Start
+function initialSetup() {
+    const actualWidth = canvas.clientWidth;
+    const actualHeight = Math.floor(actualWidth / ASPECT_RATIO);
+
+    if (actualWidth === 0) { // Check if clientWidth is still 0
+        console.warn("Canvas clientWidth is 0 during initialSetup. Retrying shortly...");
+        setTimeout(initialSetup, 100); // Retry after a short delay
+        return;
+    }
+    
+    canvas.width = actualWidth;  // Set drawing buffer width
+    canvas.height = actualHeight; // Set drawing buffer height
+    renderer.setSize(actualWidth, actualHeight);
+
+    camera.aspect = actualWidth / actualHeight; // which is ASPECT_RATIO
     camera.updateProjectionMatrix();
-    animate();
-}
-if (canvas.clientWidth > 0 && canvas.clientHeight > 0) { 
-    window.dispatchEvent(new Event('resize'));
+    console.log(`Initial setup size: ${actualWidth}x${actualHeight}`);
+    
+    animate(); // Start the animation loop
 }
 
-// Placeholder for functions network.js might call
-window.resetGameControls = () => { 
-    if(cueStick) cueStick.visible = false; 
-    // Reset snookerGameState if needed, though server should drive game state resets primarily.
-    // snookerGameState.targetBallState = 'MUST_HIT_RED';
-    // snookerGameState.redsRemaining = 15;
-    console.log("resetGameControls called by network.js");
-};
-window.enableCueControls = (isMyTurn) => {
-    console.log("enableCueControls called with:", isMyTurn, "Current player:", window.gameState ? window.gameState.currentPlayer : 'unknown');
-    // Actual enabling/disabling of cue stick interaction might depend on:
-    // 1. Is it this client's turn? (isMyTurn)
-    // 2. Is the cue ball stationary? (handled in animate's cue stick logic)
-    // This function is more of a notification for now. UI could reflect "Your turn" vs "Opponent's turn".
-};
+// DOMContentLoaded listener for UI initialization and starting the game setup
+document.addEventListener('DOMContentLoaded', () => {
+    const startGameBtn = document.getElementById('start-game-btn');
+    if (startGameBtn) {
+        startGameBtn.addEventListener('click', () => {
+            if (window.localPlayerId === 'player1') {
+                if (window.socket && window.socket.readyState === WebSocket.OPEN) {
+                    if (window.gameState && !window.gameState.gameStarted) {
+                        window.socket.send(JSON.stringify({ type: 'startGameRequest' }));
+                    } else if (window.gameState && window.gameState.gameStarted) {
+                        alert(_('gameAlreadyStarted'));
+                    } else {
+                         alert(_('gameStateNotAvailable'));
+                    }
+                } else {
+                    alert(_('notConnected'));
+                }
+            } else if (window.localPlayerId) { // Player is assigned, but not player1
+                alert(_('onlyPlayer1CanStart'));
+            } else { // Not yet assigned a player ID
+                alert(_('playerIDNotAssigned'));
+            }
+        });
+    }
+
+    // Initialize UI display elements
+    const startGameBtnElem = document.getElementById('start-game-btn');
+    if(startGameBtnElem) startGameBtnElem.textContent = _('startGame');
+    
+    const playerIdDisplay = document.getElementById('player-id-display');
+    if (playerIdDisplay) playerIdDisplay.textContent = _('connecting');
+    const gameStatusDisplay = document.getElementById('game-status-display');
+    if (gameStatusDisplay) gameStatusDisplay.textContent = _('waitingForConnection');
+    const turnIndicator = document.getElementById('turn-indicator');
+    if (turnIndicator) turnIndicator.textContent = _('notConnected'); // Or an empty string, or "Game not started"
+
+    // Start the game setup (which includes sizing and starting animation)
+    initialSetup(); 
+});
 
 function allBallsStationary() {
     for (const ball of balls) {

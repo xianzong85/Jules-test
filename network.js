@@ -21,26 +21,26 @@ socket.onopen = () => {
 
 socket.onerror = (error) => {
     console.error('WebSocket Error:', error);
-    alert('WebSocket error. See console for details.');
+    alert(_('connectionError') + ' See console for details.'); // Keep details in English for console
     const playerIdDisplay = document.getElementById('player-id-display');
-    if (playerIdDisplay) playerIdDisplay.textContent = "Error connecting to server.";
+    if (playerIdDisplay) playerIdDisplay.textContent = _('connectionError');
     const turnIndicator = document.getElementById('turn-indicator');
-    if (turnIndicator) turnIndicator.textContent = "Connection Error";
+    if (turnIndicator) turnIndicator.textContent = _('connectionError');
 };
 
 socket.onclose = () => {
     console.log('Disconnected from WebSocket server');
-    alert('Disconnected from server.');
+    alert(_('disconnectedFromServer'));
     localPlayerId = null;
     gameState.gameStarted = false;
     gameState.currentPlayer = null;
     // Reset UI elements
     const playerIdDisplay = document.getElementById('player-id-display');
-    if (playerIdDisplay) playerIdDisplay.textContent = "Disconnected.";
+    if (playerIdDisplay) playerIdDisplay.textContent = _('disconnected');
     const gameStatusDisplay = document.getElementById('game-status-display');
-    if (gameStatusDisplay) gameStatusDisplay.textContent = "Disconnected from server.";
+    if (gameStatusDisplay) gameStatusDisplay.textContent = _('disconnectedFromServer');
     const turnIndicator = document.getElementById('turn-indicator');
-    if (turnIndicator) turnIndicator.textContent = "";
+    if (turnIndicator) turnIndicator.textContent = ""; // Or _('notConnected')
     if (window.snookerGameState) { // Reset game.js's snooker state if it exists
         window.snookerGameState.targetBallState = 'MUST_HIT_RED';
         window.snookerGameState.redsRemaining = 15;
@@ -103,11 +103,11 @@ socket.onmessage = (event) => {
         console.log('Assigned as:', localPlayerId);
         const playerIdDisplay = document.getElementById('player-id-display');
         if (playerIdDisplay) {
-            playerIdDisplay.textContent = `You are: ${localPlayerId}`;
+            playerIdDisplay.textContent = `${_('youAre')}: ${localPlayerId}`;
         }
     } else if (message.type === 'serverFull') {
         console.log('Server is full. Cannot join.');
-        alert('Server is full. Cannot join.');
+        alert(_('serverFull'));
         socket.close();
     } else if (message.type === 'gameStart') {
         gameState.gameStarted = true; // Network.js internal state
@@ -125,11 +125,11 @@ socket.onmessage = (event) => {
         console.log('Game started! Starting player:', gameState.currentPlayer);
         const gameStatusDisplay = document.getElementById('game-status-display');
         if (gameStatusDisplay) {
-            gameStatusDisplay.textContent = `Game started! First turn: ${gameState.currentPlayer}. Target: ${message.initialTarget}`;
+            gameStatusDisplay.textContent = `${_('gameStarted')} ${_('firstTurn')}: ${gameState.currentPlayer}. ${_('target')}: ${_(message.initialTarget)}`;
         }
         const turnIndicator = document.getElementById('turn-indicator');
         if (turnIndicator) {
-            turnIndicator.textContent = `${gameState.currentPlayer}'s Turn (Target: ${message.initialTarget})`;
+            turnIndicator.textContent = `${gameState.currentPlayer}'s Turn (${_('target')}: ${_(message.initialTarget)})`;
         }
         updateControlsForTurn();
     } else if (message.type === 'turnUpdate') {
@@ -146,7 +146,7 @@ socket.onmessage = (event) => {
         console.log("It's now turn for:", gameState.currentPlayer, "Target:", message.targetBallState);
         const turnIndicator = document.getElementById('turn-indicator');
         if (turnIndicator) {
-            turnIndicator.textContent = `${gameState.currentPlayer}'s Turn (Target: ${message.targetBallState}, Reds: ${message.redsRemaining})`;
+             turnIndicator.textContent = `${gameState.currentPlayer}'s Turn (${_('target')}: ${_(message.targetBallState)}, ${_('reds')}: ${message.redsRemaining})`;
         }
         updateControlsForTurn();
     } else if (message.type === 'opponentDisconnected') {
@@ -158,17 +158,17 @@ socket.onmessage = (event) => {
             window.snookerGameState.gameStarted = false;
         }
         console.log('Opponent disconnected:', message.disconnectedPlayer);
-        alert('Your opponent has disconnected. The game has been reset.');
+        alert(_('opponentDisconnected'));
         // Update UI elements
         const gameStatusDisplay = document.getElementById('game-status-display');
-        if (gameStatusDisplay) gameStatusDisplay.textContent = 'Opponent disconnected. Game reset.';
+        if (gameStatusDisplay) gameStatusDisplay.textContent = _('opponentDisconnected');
         const turnIndicator = document.getElementById('turn-indicator');
-        if (turnIndicator) turnIndicator.textContent = "Waiting for players...";
+        if (turnIndicator) turnIndicator.textContent = _('waitingForPlayers');
         if (window.resetGameControls) window.resetGameControls();
 
     } else if (message.type === 'error') {
         console.error('Server error:', message.message);
-        alert('Server error: ' + message.message);
+        alert(`${_('serverError')}: ${message.message}`); // Keep server's error message in English or as is
     } else if (message.type === 'fullBallStateUpdate' && message.payload && message.payload.balls) {
         console.log('Received fullBallStateUpdate from server.');
         if (window.balls && Array.isArray(window.balls) && typeof Ball !== 'undefined') { // Ball class from game.js
@@ -210,17 +210,17 @@ function updateControlsForTurn() {
     if (gameState.gameStarted && localPlayerId === gameState.currentPlayer) {
         console.log("It's your turn!");
         if (turnIndicator && window.snookerGameState) { // Check snookerGameState for target info
-            turnIndicator.textContent = `Your Turn (Target: ${window.snookerGameState.targetBallState}, Reds: ${window.snookerGameState.redsRemaining})`;
+            turnIndicator.textContent = `${_('yourTurn')} (${_('target')}: ${_(window.snookerGameState.targetBallState)}, ${_('reds')}: ${window.snookerGameState.redsRemaining})`;
         }
         if (window.enableCueControls) window.enableCueControls(true);
     } else if (gameState.gameStarted) {
         console.log("Waiting for opponent...");
         if (turnIndicator && window.snookerGameState) {
-             turnIndicator.textContent = `Opponent's Turn (Target: ${window.snookerGameState.targetBallState}, Reds: ${window.snookerGameState.redsRemaining})`;
+             turnIndicator.textContent = `${_('opponentsTurn')} (${_('target')}: ${_(window.snookerGameState.targetBallState)}, ${_('reds')}: ${window.snookerGameState.redsRemaining})`;
         }
         if (window.enableCueControls) window.enableCueControls(false);
     } else {
-        if (turnIndicator) turnIndicator.textContent = "Game not started.";
+        if (turnIndicator) turnIndicator.textContent = _('waitingForPlayers'); // Or "Game not started."
         if (window.enableCueControls) window.enableCueControls(false);
     }
 }

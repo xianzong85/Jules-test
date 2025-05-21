@@ -13,23 +13,22 @@ body {
 }
 
 #game-container {
-    /* Let canvas define dimensions, or set fixed if preferred */
-    /* width: 800px; max-width: 90vw; */ /* Example fixed width */
-    /* height: 450px; max-height: 50vh; */ /* Example fixed height */
+    width: 90%; /* Use a high percentage of viewport width */
+    max-width: 1280px; /* Prevent it from becoming too large on very wide screens */
     border: 3px solid #555;
     box-shadow: 0 0 15px rgba(0,0,0,0.6);
     margin-bottom: 20px; /* Space between game and UI */
-    /* The canvas itself will fill this container */
-    /* Ensure game-container is centered if body's align-items is not enough */
-    margin-left: auto;
-    margin-right: auto;
+    margin-left: auto; /* Center the container */
+    margin-right: auto; /* Center the container */
+    /* Height will be determined by the canvas content */
 }
 
 #billiard-canvas {
     display: block; /* Remove extra space below canvas if it's inline */
-    width: 800px; /* Default width */
-    height: 450px; /* Default height */
-    max-width: 100%; /* Ensure it's responsive within the container */
+    width: 100%; /* Fill the width of #game-container */
+    /* height will be set by JavaScript in game.js to maintain aspect ratio */
+    /* e.g., based on width * 9 / 16 for a 16:9 aspect ratio */
+    max-width: 100%; /* Ensure it's responsive within the container (already there, but good to keep) */
     background-color: #000; /* Fallback background for canvas area */
 }
 
