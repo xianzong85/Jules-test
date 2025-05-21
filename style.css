@@ -1,0 +1,87 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #333; /* Dark gray background */
+    color: #fff; /* White text */
+    margin: 0;
+    padding: 20px; /* Add some padding around the content */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* justify-content: center; -- Removing this to allow content to flow from top */
+    min-height: 100vh;
+    box-sizing: border-box; /* Ensure padding doesn't add to total width/height */
+}
+
+#game-container {
+    /* Let canvas define dimensions, or set fixed if preferred */
+    /* width: 800px; max-width: 90vw; */ /* Example fixed width */
+    /* height: 450px; max-height: 50vh; */ /* Example fixed height */
+    border: 3px solid #555;
+    box-shadow: 0 0 15px rgba(0,0,0,0.6);
+    margin-bottom: 20px; /* Space between game and UI */
+    /* The canvas itself will fill this container */
+    /* Ensure game-container is centered if body's align-items is not enough */
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#billiard-canvas {
+    display: block; /* Remove extra space below canvas if it's inline */
+    width: 800px; /* Default width */
+    height: 450px; /* Default height */
+    max-width: 100%; /* Ensure it's responsive within the container */
+    background-color: #000; /* Fallback background for canvas area */
+}
+
+#ui-container {
+    text-align: center;
+    background-color: #444; /* Slightly lighter gray for UI box */
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.4);
+    width: 100%; /* Make UI container take more width if needed */
+    max-width: 800px; /* Match game container width or set as preferred */
+    box-sizing: border-box;
+}
+
+#ui-container h1 {
+    margin-top: 0;
+    font-size: 2em;
+    color: #00aaff; /* A brighter color for the heading */
+}
+
+#player-info {
+    margin-bottom: 15px;
+}
+
+#player-info p {
+    margin: 8px 0;
+    font-size: 1.1em;
+}
+
+#start-game-btn {
+    background-color: #007bff; /* Blue button */
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    font-size: 18px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+#start-game-btn:hover {
+    background-color: #0056b3; /* Darker blue on hover */
+    transform: translateY(-2px); /* Slight lift on hover */
+}
+
+#start-game-btn:active {
+    transform: translateY(0px); /* Button press effect */
+}
+
+#turn-indicator {
+    margin-top: 20px;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #ffc107; /* Amber/yellow for turn indicator */
+}

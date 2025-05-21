@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Billiard Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="billiard-canvas"></canvas>
+    </div>
+    <div id="ui-container">
+        <h1>3D Billiard Game</h1>
+        <div id="player-info">
+            <p>Player 1: <span id="player1-score">0</span></p>
+            <p>Player 2: <span id="player2-score">0</span></p>
+        </div>
+        <button id="start-game-btn">Start Game</button>
+        <p id="turn-indicator">Player 1's Turn</p>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="game.js"></script>
+    <script src="network.js"></script>
+</body>
+</html>
