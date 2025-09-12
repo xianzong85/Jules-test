@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>QUnit Tests - Billiard Game</title>
+    <link rel="stylesheet" href="https://code.jquery.com/qunit/qunit-2.19.4.css">
+</head>
+<body>
+    <div id="qunit"></div>
+    <div id="qunit-fixture"></div>
+    <script src="https://code.jquery.com/qunit/qunit-2.19.4.js"></script>
+    
+    <!-- Include Three.js as it's a dependency for game.js and vector operations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- 
+        Include game.js. For tests, it's important that game.js does not automatically
+        run code that interacts with a DOM that might not be fully set up during test runs,
+        or that starts animation loops.
+        The current game.js does run some code immediately (like renderer setup & animate loop).
+        For robust testing, this might need refactoring in game.js later (e.g., wrap setup in a function).
+        For now, we proceed as requested. window.cueBall is expected to be set by game.js.
+    -->
+    <script src="game.js"></script> 
+    <!-- network.js is not needed for these physics tests -->
+
+    <!-- Include test script -->
+    <script src="tests.js"></script>
+</body>
+</html>
